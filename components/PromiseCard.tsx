@@ -11,6 +11,17 @@ async function fetcher(...args: Parameters<typeof fetch>) {
   return (await fetch(...args)).json();
 }
 
+// Human-friendly progress tooltip
+export function getProgressTooltip(progressScore: number): string {
+  if (progressScore === 0) return "No progress made yet";
+  else if (progressScore === 1) return "Early progress made";
+  else if (progressScore === 2) return "Some progress made";
+  else if (progressScore === 3) return "Good progress made";
+  else if (progressScore === 4) return "Almost complete";
+  else if (progressScore === 5) return "Complete";
+  else return "Unknown";
+}
+
 export default function PromiseCard({
   promise,
   departmentSlug,
@@ -26,21 +37,15 @@ export default function PromiseCard({
   const progressScore = promise.progress_score || 0; // 1-5
 
   // Human-friendly progress tooltip
-  let progressTooltip = "";
-  if (progressScore === 0) progressTooltip = "No progress made yet";
-  else if (progressScore === 1) progressTooltip = "Early progress made";
-  else if (progressScore === 2) progressTooltip = "Some progress made";
-  else if (progressScore === 3) progressTooltip = "Good progress made";
-  else if (progressScore === 4) progressTooltip = "Almost complete";
-  else if (progressScore === 5) progressTooltip = "Complete";
+  let progressTooltip = getProgressTooltip(progressScore);
 
   // Impact Indicator
   const impactRankRaw = promise.bc_promise_rank ?? "";
   const impactRationale =
     promise.bc_promise_rank_rationale || "No rationale provided.";
   let impactIcon = null;
-  let impactRankStr = String(impactRankRaw).toLowerCase();
-  let impactRankNum = Number(impactRankRaw);
+  const impactRankStr = String(impactRankRaw).toLowerCase();
+  const impactRankNum = Number(impactRankRaw);
   let filledBars = 0;
   let impactLevelLabel = "";
   if (impactRankStr === "strong" || impactRankNum >= 8) {
@@ -181,7 +186,7 @@ export default function PromiseCard({
     r: number,
     angleInDegrees: number,
   ): { x: number; y: number } {
-    var angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+    const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
     return {
       x: cx + r * Math.cos(angleInRadians),
       y: cy + r * Math.sin(angleInRadians),
