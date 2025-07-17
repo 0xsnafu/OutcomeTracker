@@ -175,14 +175,14 @@ function sortPromises(
   const filteredPromises = promises.filter((promise) => {
     // Progress filter
     if (progressFilter !== "all") {
-      const progressScore = promise.progress_score || 0;
+      const progressScore = promise.progress_score || 1;
       if (progressFilter === "complete" && progressScore !== 5) return false;
       if (
         progressFilter === "in_progress" &&
-        (progressScore === 0 || progressScore === 5)
+        (progressScore === 1 || progressScore === 5)
       )
         return false;
-      if (progressFilter === "not_started" && progressScore !== 0) return false;
+      if (progressFilter === "not_started" && progressScore !== 1) return false;
     }
 
     // Impact filter
@@ -230,8 +230,8 @@ function sortPromises(
       return lastDateB - lastDateA;
     } else {
       // Default sort: progress score (descending) -> impact (descending) -> last evidence date (descending)
-      const progressA = a.progress_score || 0;
-      const progressB = b.progress_score || 0;
+      const progressA = a.progress_score || 1;
+      const progressB = b.progress_score || 1;
       if (progressA !== progressB) return progressB - progressA;
 
       const impactA = getImpactScore(a);
@@ -246,13 +246,19 @@ function sortPromises(
   return sortedPromises;
 }
 
-export function MinisterHeader({ minister, promises }: { minister: Minister, promises: PromiseListing[] }) {
+export function MinisterHeader({
+  minister,
+  promises,
+}: {
+  minister: Minister;
+  promises: PromiseListing[];
+}) {
   const ministerName = `${minister.first_name} ${minister.last_name}`;
   const ministerTitle = minister.title;
   const avatarUrl = minister.avatar_url;
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center mb-8 w-full md:justify-between">
+    <div className="flex flex-col md:flex-row md:items-start mb-8 w-full">
       <div className="flex items-center mb-4 md:mb-0">
         {avatarUrl ? (
           <Avatar className="h-20 w-20 mr-6 bg-gray-100">
@@ -273,10 +279,10 @@ export function MinisterHeader({ minister, promises }: { minister: Minister, pro
         <div>
           <h2 className="text-3xl">{ministerName}</h2>
           <p className="mt-1 text-sm font-mono">{ministerTitle}</p>
+          <div className="mt-1">
+            <ProgressIndicator promises={promises} />
+          </div>
         </div>
-      </div>
-      <div className="flex flex-col">
-        <ProgressIndicator promises={promises} />
       </div>
     </div>
   );
@@ -297,6 +303,16 @@ const getImpactScore = (promise: PromiseListing): number => {
   return 0;
 };
 
+const progressColor = (score: number | null): string => {
+  if (score === null) return "bg-gray-300";
+  if (score === 1) return "bg-gray-300";
+  if (score === 2) return "bg-amber-300";
+  if (score === 3) return "bg-orange-300";
+  if (score === 4) return "bg-lime-400";
+  if (score === 5) return "bg-green-600";
+  return "bg-green-500";
+};
+
 const ProgressIndicator = ({ promises }: { promises: PromiseListing[] }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -308,63 +324,37 @@ const ProgressIndicator = ({ promises }: { promises: PromiseListing[] }) => {
   });
 
   return (
-    <>
-      <h3 className="text-xl font-semibold mb-1">Promises</h3>
+    <div className="w-full md:w-72">
+      <div className="flex h-4 w-full rounded border border-gray-200">
+        {promises.map((p, index) => {
+          // Add a tiny right border except for the last chunk (to view each promise easily)
+          const border =
+            index < promises.length - 1 ? "border-r border-white" : "";
 
-      {/* Progress Indicator */}
-      <div className="w-full md:w-64">
-        <div className="flex h-4 w-full rounded border border-gray-200 mb-2">
-          {promises.map((p, index) => {
-            let progressColor = "bg-gray-300"; // 0 (not started, default color)
-
-            if (p.progress_score && p.progress_score > 0 && p.progress_score < 5) {
-              // 5-point scale for in-progress promises
-              if (p.progress_score === 1) progressColor = "bg-yellow-300"; // Early progress made
-              else if (p.progress_score === 2) progressColor = "bg-amber-300"; // Some progress made
-              else if (p.progress_score === 3) progressColor = "bg-orange-300"; // Good progress made
-              else if (p.progress_score === 4) progressColor = "bg-lime-400"; // Almost complete
-            } else if (p.progress_score === 5) progressColor = "bg-green-600"; // Done
-
-            // Add a tiny right border except for the last chunk (to view each promise easily)
-            const border = index < promises.length - 1 ? "border-r border-white" : "";
-
-            return (
-              <div
-                key={p.id}
-                className={`h-full flex-1 min-w-0 ${progressColor} ${border} cursor-help relative`}
-                style={{ minWidth: 0 }}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-              >
-                {/* Tooltip on hover */}
-                {hoveredIndex === index && (
-                  <div className="absolute w-min z-20 p-2 bg-white border border-gray-200 shadow-lg text-sm top-full mt-1 right-0">
-                    <div className="font-medium whitespace-nowrap">{p.concise_title}</div>
-                    <div>{getProgressTooltip(p.progress_score ?? 0)} ({p.progress_score ?? 0}/5)</div>
+          return (
+            <div
+              key={p.id}
+              className={`h-full flex-1 min-w-0 ${progressColor(p.progress_score)} ${border} cursor-help relative`}
+              style={{ minWidth: 0 }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              {/* Tooltip on hover */}
+              {hoveredIndex === index && (
+                <div className="absolute w-min z-20 p-2 bg-white border border-gray-200 shadow-lg text-sm top-full mt-1 right-0">
+                  <div className="font-medium whitespace-nowrap">
+                    {p.concise_title}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Legend with 3 categories */}
-        <div className="flex gap-4 text-xs text-gray-600 mt-1">
-          <span>
-            <span className="inline-block w-3 h-3 bg-gray-300 mr-1 rounded-sm align-middle" />
-            Not started
-          </span>
-          <span>
-            <span className="inline-block w-3 h-3 bg-yellow-300 mr-1 rounded-sm align-middle" />
-            <span className="inline-block w-3 h-3 bg-lime-400 mr-1 rounded-sm align-middle" />
-            In progress
-          </span>
-          <span>
-            <span className="inline-block w-3 h-3 bg-green-600 mr-1 rounded-sm align-middle" />
-            Done
-          </span>
-        </div>
+                  <div>
+                    {getProgressTooltip(p.progress_score ?? 1)} (
+                    {p.progress_score ?? 1}/5)
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-    </>
+    </div>
   );
-}
+};
